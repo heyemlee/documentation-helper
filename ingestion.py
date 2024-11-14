@@ -1,17 +1,22 @@
 import os
-
+import pinecone
 from dotenv import load_dotenv
-
-load_dotenv()
-
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import ReadTheDocsLoader
 from langchain_openai import OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
+from langchain_community.document_loaders import WebBaseLoader
 
 from consts import INDEX_NAME
 
+load_dotenv()
+pinecone_api_key = os.getenv("PINECONE_API_KEY")
+pinecone_env = os.getenv("PINECONE_ENVIRONMENT_REGION")
+pc = pinecone.Pinecone(api_key=pinecone_api_key, environment=pinecone_env)
+
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+
+print(f"Pinecone connected. Current environment: {pinecone_env}")
 
 
 def ingest_docs():
@@ -19,7 +24,7 @@ def ingest_docs():
 
     raw_documents = loader.load()
     print(f"loaded {len(raw_documents)} documents")
-
+    # Chunk_overlap is used to ensure continuity of context between text chunks
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=50)
     documents = text_splitter.split_documents(raw_documents)
     for doc in documents:
@@ -33,8 +38,6 @@ def ingest_docs():
 
 
 def ingest_docs2() -> None:
-    from langchain_community.document_loaders import FireCrawlLoader
-
     langchain_documents_base_urls = [
         "https://python.langchain.com/v0.2/docs/integrations/chat/",
         "https://python.langchain.com/v0.2/docs/integrations/llms/",
@@ -52,23 +55,24 @@ def ingest_docs2() -> None:
         "https://python.langchain.com/v0.2/docs/integrations/chat_loaders/",
         "https://python.langchain.com/v0.2/docs/concepts/",
     ]
-    langchain_documents_base_urls2 = [langchain_documents_base_urls[0]]
-    for url in langchain_documents_base_urls2:
-        print(f"FireCrawling {url=}")
-        loader = FireCrawlLoader(
-            url=url,
-            mode="crawl",
-            params={
-                "limit": 5,
-            },
-        )
-        docs = loader.load()
 
-        print(f"Going to add {len(docs)} documents to Pinecone")
-        PineconeVectorStore.from_documents(
-            docs, embeddings, index_name="firecrawl-index"
-        )
-        print(f"****Loading {url}* to vectorstore done ***")
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=50)
+
+    for url in langchain_documents_base_urls[:1]:
+        print(f"Processing URL: {url}")
+        try:
+            loader = WebBaseLoader(url)
+            docs = loader.load()
+
+            split_docs = text_splitter.split_documents(docs)
+
+            print(f"Going to add {len(split_docs)} documents to Pinecone")
+            PineconeVectorStore.from_documents(
+                split_docs, embeddings, index_name=INDEX_NAME
+            )
+            print(f"****Loading {url} to vectorstore done ***")
+        except Exception as e:
+            print(f"Error processing {url}: {str(e)}")
 
 
 if __name__ == "__main__":

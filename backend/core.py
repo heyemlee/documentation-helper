@@ -45,7 +45,7 @@ def format_docs(docs):
 def run_llm2(query: str, chat_history: List[Dict[str, Any]] = []):
     embeddings = OpenAIEmbeddings()
     docsearch = PineconeVectorStore(index_name=INDEX_NAME, embedding=embeddings)
-    chat = ChatOpenAI(model_name="gpt-4o", verbose=True, temperature=0)
+    chat = ChatOpenAI(model_name="gpt-3.5-turbo", verbose=True, temperature=0)
 
     rephrase_prompt = hub.pull("langchain-ai/chat-langchain-rephrase")
 
