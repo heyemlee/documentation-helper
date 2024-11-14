@@ -2,22 +2,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 from typing import Set
-
 import streamlit as st
 from streamlit_chat import message
-
 from backend.core import run_llm
-
-st.set_page_config(
-    page_title="Your App Title",
-    page_icon="🧊",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
-# Add these imports
 from PIL import Image
 import requests
 from io import BytesIO
+
+st.set_page_config(
+    page_title="Chat",
+    page_icon="🥷",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
 
 def create_sources_string(source_urls: Set[str]) -> str:
@@ -31,20 +28,17 @@ def create_sources_string(source_urls: Set[str]) -> str:
     return sources_string
 
 
-# Add this function to get a profile picture
 def get_profile_picture(email):
-    # This uses Gravatar to get a profile picture based on email
-    # You can replace this with a different service or use a default image
     gravatar_url = f"https://www.gravatar.com/avatar/{hash(email)}?d=identicon&s=200"
     response = requests.get(gravatar_url)
     img = Image.open(BytesIO(response.content))
     return img
 
 
-# Custom CSS for dark theme and modern look
+# Enhanced CSS for better alignment and styling
 st.markdown(
     """
-<style>
+    <style>
     .stApp {
         background-color: #1E1E1E;
         color: #FFFFFF;
@@ -52,10 +46,16 @@ st.markdown(
     .stTextInput > div > div > input {
         background-color: #2D2D2D;
         color: #FFFFFF;
+        height: 45px;
+        margin-top: 0;
+        vertical-align: middle;
     }
     .stButton > button {
         background-color: #4CAF50;
         color: #FFFFFF;
+        height: 45px;
+        margin-top: 0;
+        vertical-align: middle;
     }
     .stSidebar {
         background-color: #252526;
@@ -63,28 +63,32 @@ st.markdown(
     .stMessage {
         background-color: #2D2D2D;
     }
-</style>
-""",
+    /* New styles for input container */
+    .input-container {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+    }
+    .input-container > div {
+        margin: 0 !important;
+    }
+    </style>
+    """,
     unsafe_allow_html=True,
 )
-
-# Set page config at the very beginning
-
 
 # Sidebar user information
 with st.sidebar:
     st.title("User Profile")
-
-    # You can replace these with actual user data
-    user_name = "John Doe"
-    user_email = "john.doe@example.com"
-
+    user_name = "xx"
+    user_email = "xxxxxx"
     profile_pic = get_profile_picture(user_email)
     st.image(profile_pic, width=150)
     st.write(f"**Name:** {user_name}")
     st.write(f"**Email:** {user_email}")
 
-st.header("LangChain🦜🔗 Udemy Course- Helper Bot")
+st.header("Chat with me")
 
 # Initialize session state
 if "chat_answers_history" not in st.session_state:
@@ -92,15 +96,22 @@ if "chat_answers_history" not in st.session_state:
     st.session_state["user_prompt_history"] = []
     st.session_state["chat_history"] = []
 
-# Create two columns for a more modern layout
-col1, col2 = st.columns([2, 1])
+# Create a container for input elements with custom CSS
+st.markdown('<div class="input-container">', unsafe_allow_html=True)
+# Adjust column ratio for better alignment
+col1, col2 = st.columns([5, 1])
 
 with col1:
-    prompt = st.text_input("Prompt", placeholder="Enter your message here...")
+    prompt = st.text_input(
+        "", placeholder="Enter your message here...", label_visibility="collapsed"
+    )
 
 with col2:
-    if st.button("Submit", key="submit"):
-        prompt = prompt or "Hello"  # Default message if input is empty
+    submit_button = st.button("Submit", key="submit", use_container_width=True)
+st.markdown("</div>", unsafe_allow_html=True)
+
+if submit_button:
+    prompt = prompt or "Hello"  # Default message if input is empty
 
 if prompt:
     with st.spinner("Generating response..."):
@@ -129,4 +140,3 @@ if st.session_state["chat_answers_history"]:
 
 # Add a footer
 st.markdown("---")
-st.markdown("Powered by LangChain and Streamlit")
