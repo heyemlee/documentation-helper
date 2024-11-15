@@ -1,142 +1,202 @@
-from dotenv import load_dotenv
-
-load_dotenv()
-from typing import Set
 import streamlit as st
 from streamlit_chat import message
 from backend.core import run_llm
-from PIL import Image
-import requests
-from io import BytesIO
 
 st.set_page_config(
     page_title="Chat",
-    page_icon="🥷",
+    page_icon="💬",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
-
-def create_sources_string(source_urls: Set[str]) -> str:
-    if not source_urls:
-        return ""
-    sources_list = list(source_urls)
-    sources_list.sort()
-    sources_string = "sources:\n"
-    for i, source in enumerate(sources_list):
-        sources_string += f"{i+1}. {source}\n"
-    return sources_string
-
-
-def get_profile_picture(email):
-    gravatar_url = f"https://www.gravatar.com/avatar/{hash(email)}?d=identicon&s=200"
-    response = requests.get(gravatar_url)
-    img = Image.open(BytesIO(response.content))
-    return img
-
-
-# Enhanced CSS for better alignment and styling
 st.markdown(
     """
     <style>
+    /* Main app background and text colors */
     .stApp {
-        background-color: #1E1E1E;
-        color: #FFFFFF;
+        background-color: #f7f7f8;
+        color: #1a1a1a;
     }
-    .stTextInput > div > div > input {
-        background-color: #2D2D2D;
-        color: #FFFFFF;
-        height: 45px;
-        margin-top: 0;
-        vertical-align: middle;
-    }
-    .stButton > button {
-        background-color: #4CAF50;
-        color: #FFFFFF;
-        height: 45px;
-        margin-top: 0;
-        vertical-align: middle;
-    }
-    .stSidebar {
-        background-color: #252526;
-    }
-    .stMessage {
-        background-color: #2D2D2D;
-    }
-    /* New styles for input container */
-    .input-container {
+    
+    /* Initial welcome message container */
+    .welcome-container {
         display: flex;
+        flex-direction: column;
         align-items: center;
-        gap: 1rem;
+        justify-content: center;
+        min-height: 60vh;
+        margin: 2rem auto;
+        max-width: 800px;
+        text-align: center;
+    }
+    
+    .welcome-title {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        color: #1a1a1a;
+    }
+    
+    /* Chat messages container */
+    .messages-container {
+        max-width: 800px;
+        margin: 0 auto;
         padding: 1rem;
     }
-    .input-container > div {
-        margin: 0 !important;
+    
+    /* Message styling */
+    .stMessage {
+        margin: 0.5rem 0 !important;
+    }
+    
+    .stMessage > div {
+        padding: 0.5rem 1rem !important;
+    }
+    
+    /* User message styling */
+    .stMessage.user [data-testid="StyledMessage"] {
+        background-color: #1a1a1a !important;
+        color: white !important;
+        border-radius: 12px !important;
+        max-width: 80% !important;
+        margin-left: auto !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+    }
+    
+    /* Assistant message styling */
+    .stMessage.assistant [data-testid="StyledMessage"] {
+        background-color: white !important;
+        color: #1a1a1a !important;
+        border-radius: 12px !important;
+        max-width: 80% !important;
+        margin-right: auto !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+    }
+    
+    /* Input container */
+    .input-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background-color: #f7f7f8;
+        border-top: 1px solid #e5e5e5;
+        padding: 1rem;
+    }
+    
+    /* Input field styling */
+    .stTextInput > div > div > input {
+        background-color: transparent !important;
+        border: none !important;
+        padding: 0.5rem !important;
+    }
+    
+    .stTextInput > div {
+        background-color: transparent !important;
+        border: none !important;
+    }
+    
+    /* Button styling */
+    .stButton > button {
+        background-color: #1a1a1a !important;
+        color: white !important;
+        border-radius: 8px !important;
+        padding: 0.5rem 1.5rem !important;
+        border: none !important;
+        transition: background-color 0.3s ease !important;
+    }
+    
+    .stButton > button:hover {
+        background-color: #333 !important;
+    }
+    
+    /* Hide default elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Additional spacing for messages to not hide behind input */
+    .end-space {
+        height: 80px;
     }
     </style>
     """,
-    unsafe_allow_html=True,
+    unsafe_allow_html=True
 )
 
-# Sidebar user information
-with st.sidebar:
-    st.title("User Profile")
-    user_name = "xx"
-    user_email = "xxxxxx"
-    profile_pic = get_profile_picture(user_email)
-    st.image(profile_pic, width=150)
-    st.write(f"**Name:** {user_name}")
-    st.write(f"**Email:** {user_email}")
-
-st.header("Chat with me")
-
 # Initialize session state
-if "chat_answers_history" not in st.session_state:
-    st.session_state["chat_answers_history"] = []
-    st.session_state["user_prompt_history"] = []
-    st.session_state["chat_history"] = []
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+    st.session_state.is_first_message = True
+    st.session_state.message_counter = 0 
 
-# Create a container for input elements with custom CSS
-st.markdown('<div class="input-container">', unsafe_allow_html=True)
-# Adjust column ratio for better alignment
-col1, col2 = st.columns([5, 1])
+def process_message(prompt):
+    if not prompt.strip():
+        return
+        
+    with st.spinner("Thinking..."):
+        # Add user message to state
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        
+        # Get response from LLM
+        response = run_llm(
+            query=prompt,
+            chat_history=[(msg["role"], msg["content"]) for msg in st.session_state.messages]
+        )
+        
+        # Add assistant response to state
+        st.session_state.messages.append({"role": "assistant", "content": response["answer"]})
+        st.session_state.is_first_message = False
 
-with col1:
-    prompt = st.text_input(
-        "", placeholder="Enter your message here...", label_visibility="collapsed"
+# Display welcome message if no messages yet
+if st.session_state.is_first_message:
+    st.markdown(
+        """
+        <div class="welcome-container">
+            <h1 class="welcome-title">How can I help you today?</h1>
+        </div>
+        """,
+        unsafe_allow_html=True
     )
 
-with col2:
-    submit_button = st.button("Submit", key="submit", use_container_width=True)
-st.markdown("</div>", unsafe_allow_html=True)
-
-if submit_button:
-    prompt = prompt or "Hello"  # Default message if input is empty
-
-if prompt:
-    with st.spinner("Generating response..."):
-        generated_response = run_llm(
-            query=prompt, chat_history=st.session_state["chat_history"]
+# Display chat messages
+message_container = st.container()
+with message_container:
+    st.markdown('<div class="messages-container">', unsafe_allow_html=True)
+    for i, msg in enumerate(st.session_state.messages):
+        message(
+            msg["content"],
+            is_user=(msg["role"] == "user"),
+            key=f"msg_{i}"  # Use string-based key instead of hash
         )
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Add space at bottom to prevent input covering messages
+    st.markdown('<div class="end-space"></div>', unsafe_allow_html=True)
 
-        sources = set(doc.metadata["source"] for doc in generated_response["context"])
-        formatted_response = (
-            f"{generated_response['answer']} \n\n {create_sources_string(sources)}"
+# Input area
+with st.container():
+    st.markdown('<div class="input-container">', unsafe_allow_html=True)
+    st.markdown('<div class="input-group">', unsafe_allow_html=True)
+    
+    # Create columns for input and button
+    col1, col2 = st.columns([6, 1])
+    
+    with col1:
+        user_input = st.text_input(
+            "Message",
+            key="input",
+            label_visibility="collapsed",
+            placeholder="Type your message here...",
+            on_change=lambda: process_message(st.session_state.input) if st.session_state.input else None
         )
+        
+    with col2:
+        submit = st.button("Send", use_container_width=True)
+    
+    st.markdown('</div></div>', unsafe_allow_html=True)
 
-        st.session_state["user_prompt_history"].append(prompt)
-        st.session_state["chat_answers_history"].append(formatted_response)
-        st.session_state["chat_history"].append(("human", prompt))
-        st.session_state["chat_history"].append(("ai", generated_response["answer"]))
-
-# Display chat history
-if st.session_state["chat_answers_history"]:
-    for generated_response, user_query in zip(
-        st.session_state["chat_answers_history"],
-        st.session_state["user_prompt_history"],
-    ):
-        message(user_query, is_user=True, key=f"user_{user_query}")
-        message(generated_response, key=f"bot_{generated_response}")
-
-# Add a footer
-st.markdown("---")
+# Handle message submission
+if submit and user_input:
+    process_message(user_input)
+    # Force a rerun to clear the input
+    st.rerun()
