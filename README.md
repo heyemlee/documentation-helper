@@ -1,5 +1,5 @@
 # LangChain Documentation Helper
-
+![Image](public/i.jpg)
 A repository for learning LangChain by building a generative ai application.
 
 This is a web application is using a Pinecone as a vectorsotre and answers questions about LangChain.
@@ -19,19 +19,15 @@ To run this project, you will need to add the following environment variables to
 `PINECONE_API_KEY`
 `OPENAI_API_KEY`
 
-## Run Locally
-
-Download LangChain Documentation
-
-```bash
-  mkdir langchain-docs
-  wget -r -A.html -P langchain-docs  https://api.python.langchain.com/en/latest
-```
 
 Install dependencies
 
 ```bash
   pipenv install
+  pip install streamlit
+  pip install streamlit-chat
+  pip install langchain-pinecone
+
 ```
 
 Start the flask server
